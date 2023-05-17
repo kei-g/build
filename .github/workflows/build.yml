@@ -1,0 +1,150 @@
+jobs:
+  digest:
+    name: Acquire digest of the latest image
+    outputs:
+      llvm: ${{ steps.llvm.outputs.digest }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: llvm
+        name: Acquire digest of the latest snowstep/llvm
+        run: |
+          digest=$(
+            curl -s https://hub.docker.com/v2/namespaces/snowstep/repositories/llvm/tags \
+              | jq -cr '[.results[]|select(.name=="jammy").images[]|select(.architecture=="amd64")]|max_by(.last_pushed).digest'
+          )
+          printf 'digest=%s\n' $digest | tee -a $GITHUB_OUTPUT
+        shell: bash
+  libraries:
+    container:
+      image: snowstep/llvm@${{ needs.digest.outputs.llvm }}
+    env:
+      AR: llvm-ar
+      AS: ${{ matrix.as || 'llvm-as' }}
+      CC: clang
+      CFLAGS: -flto -march=sandybridge
+      CXX: clang++
+      CXXFLAGS: -flto -march=sandybridge
+      LD: clang++
+      LDFLAGS: -Wl,--build-id=fast -Wl,--lto-O3 -Wl,--no-gnu-unique -Wl,--thinlto-jobs=all -fuse-ld=lld -march=sandybridge
+      NM: llvm-nm
+      OBJCOPY: llvm-objcopy
+      OBJDUMP: llvm-objdump
+      OTOOL: llvm-otool
+      RANLIB: llvm-ranlib
+      STRIP: ${{ matrix.strip }}
+    name: Build ${{ matrix.name }}
+    needs:
+      - digest
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - as: yasm
+            cmake: >-
+              -DENABLE_DOCS=OFF
+              -DENABLE_EXAMPLES=OFF
+              -DENABLE_TESTS=OFF
+              -DENABLE_TOOLS=OFF
+            name: libaom
+            ninja: true
+            packages: >
+              yasm
+            repo: https://aomedia.googlesource.com/aom
+            version: v3.6.1
+            workdir: build
+          - as: yasm
+            cmake: >-
+              -DBUILD_APPS=OFF
+              -DBUILD_DEC=OFF
+            name: libsvtav1
+            ninja: true
+            packages: >
+              yasm
+            repo: https://gitlab.com/AOMediaCodec/SVT-AV1.git
+            version: v1.5.0
+            workdir: build
+    steps:
+      - env:
+          DEBIAN_FRONTEND: noninteractive
+        name: Install dependent packages
+        run: |
+          apt-fast update
+          apt-fast upgrade -y
+          apt-fast install --no-install-recommends -y \
+            cmake \
+            git \
+            libtool \
+            pkg-config \
+            ${{ (matrix.ninja && 'python3-pip') || '' }} \
+            ${{ matrix.packages }}
+      - if: ${{ matrix.ninja }}
+        run: |
+          pip install --upgrade pip
+          pip install ninja
+      - name: Clone the repository
+        run: |
+          git clone --depth 1 \
+                    --recursive \
+                    --single-branch \
+                    -b ${{ matrix.version }} \
+                    ${{ matrix.repo }} \
+                    /tmp/source
+      - if: ${{ matrix.patch }}
+        name: Checkout the repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - if: ${{ matrix.patch }}
+        name: Apply patch
+        run: |
+          patch --batch --unified /tmp/source/${{ matrix.patch }}
+      - env:
+          AR: llvm-ar
+          AS: ${{ matrix.as }}
+          CC: clang
+          CFLAGS: -flto -march=sandybridge
+          CXX: clang++
+          CXXFLAGS: -flto -march=sandybridge
+          LD: clang++
+          LDFLAGS: -Wl,--build-id=fast -Wl,--lto-O3 -Wl,--no-gnu-unique -Wl,--thinlto-jobs=all -fuse-ld=lld -march=sandybridge
+          NM: llvm-nm
+          OBJCOPY: llvm-objcopy
+          OBJDUMP: llvm-objdump
+          OTOOL: llvm-otool
+          RANLIB: llvm-ranlib
+          STRIP: llvm-strip
+        name: Build ${{ matrix.name }}
+        run: |
+          mkdir -pv /tmp/source/${{ matrix.workdir }}
+          cd /tmp/source/${{ matrix.workdir }}
+          cmake \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/dist \
+            ${{ matrix.cmake }} \
+            -G "${{ (matrix.ninja && 'Ninja') || 'Unix Makefiles' }}" \
+            ..
+          cmake --build .
+          cmake --install .
+      - name: Replace '/dist' with '/usr/local' of pkgconfig
+        run: |
+          [[ -d /dist/lib/pkgconfig ]] || exit 0
+          for name in $(ls /dist/lib/pkgconfig/*.pc); do
+            sed -i 's#/dist#/usr/local#g' $name || true
+          done
+        shell: bash
+      - name: Archive the build binaries
+        run: |
+          tar --group=root \
+              --owner=root \
+              -C /dist \
+              -cf /tmp/${{ matrix.name }}.tar \
+              .
+      - name: Upload the archive
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: /tmp/${{ matrix.name }}.tar
+name: Build
+on:
+  workflow_dispatch:
