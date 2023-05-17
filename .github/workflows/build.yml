@@ -66,6 +66,11 @@ jobs:
             repo: https://github.com/tukaani-project/xz.git
             version: v5.4.3
             workdir: build
+          - name: libopus
+            ninja: true
+            repo: https://github.com/xiph/opus.git
+            version: v1.4
+            workdir: build
           - as: yasm
             cmake: >-
               -DBUILD_APPS=OFF
