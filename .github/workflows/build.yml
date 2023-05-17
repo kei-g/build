@@ -60,6 +60,12 @@ jobs:
             repo: https://github.com/TimothyGu/libilbc.git
             version: v3.0.4
             workdir: build
+          - name: liblzma5
+            packages: >
+              make
+            repo: https://github.com/tukaani-project/xz.git
+            version: v5.4.3
+            workdir: build
           - as: yasm
             cmake: >-
               -DBUILD_APPS=OFF
