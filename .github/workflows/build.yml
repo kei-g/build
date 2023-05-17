@@ -52,6 +52,14 @@ jobs:
             repo: https://aomedia.googlesource.com/aom
             version: v3.6.1
             workdir: build
+          - name: libilbc
+            ninja: true
+            packages: >
+              patch
+            patch: CMakeLists.txt libilbc.patch
+            repo: https://github.com/TimothyGu/libilbc.git
+            version: v3.0.4
+            workdir: build
           - as: yasm
             cmake: >-
               -DBUILD_APPS=OFF
@@ -132,6 +140,11 @@ jobs:
           for name in $(ls /dist/lib/pkgconfig/*.pc); do
             sed -i 's#/dist#/usr/local#g' $name || true
           done
+        shell: bash
+      - if: ${{ matrix.name == 'libilbc' }}
+        name: Rename libilbc.pc
+        run: |
+          mv -v /dist/lib/pkgconfig/{lib,}ilbc.pc
         shell: bash
       - name: Archive the build binaries
         run: |
