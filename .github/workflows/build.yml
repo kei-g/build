@@ -71,7 +71,28 @@ jobs:
             repo: https://github.com/xiph/opus.git
             version: v1.4
             workdir: build
-          - cmake: >-
+          - as: llvm-as
+            name: libsdl2
+            ninja: true
+            packages: >
+              libasound2-dev
+              libdbus-1-dev
+              libdrm-dev
+              libegl-dev
+              libgbm-dev
+              libgl-dev
+              libpulse-dev
+              libsndio-dev
+              libudev-dev
+              libwayland-dev
+              libx11-dev
+              libxext-dev
+              libxkbcommon-dev
+            repo: https://github.com/libsdl-org/SDL.git
+            version: release-2.26.5
+            workdir: build
+          - as: llvm-as
+            cmake: >-
               -DSNAPPY_BUILD_BENCHMARKS=OFF
               -DSNAPPY_BUILD_TESTS=OFF
               -DSNAPPY_FUZZING_BUILD=OFF
