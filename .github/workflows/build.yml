@@ -50,6 +50,7 @@ jobs:
             packages: >
               yasm
             repo: https://aomedia.googlesource.com/aom
+            strip: llvm-strip
             version: v3.6.1
             workdir: build
           - name: libilbc
@@ -58,17 +59,20 @@ jobs:
               patch
             patch: CMakeLists.txt libilbc.patch
             repo: https://github.com/TimothyGu/libilbc.git
+            strip: llvm-strip
             version: v3.0.4
             workdir: build
           - name: liblzma5
             packages: >
               make
             repo: https://github.com/tukaani-project/xz.git
+            strip: llvm-strip
             version: v5.4.3
             workdir: build
           - name: libopus
             ninja: true
             repo: https://github.com/xiph/opus.git
+            strip: llvm-strip
             version: v1.4
             workdir: build
           - as: llvm-as
@@ -89,6 +93,7 @@ jobs:
               libxext-dev
               libxkbcommon-dev
             repo: https://github.com/libsdl-org/SDL.git
+            strip: llvm-strip
             version: release-2.26.5
             workdir: build
           - as: llvm-as
@@ -103,6 +108,7 @@ jobs:
               patch
             patch: snappy.cc snappy.patch
             repo: https://github.com/google/snappy.git
+            strip: llvm-strip
             version: 1.1.10
             workdir: build
           - as: yasm
@@ -114,8 +120,39 @@ jobs:
             packages: >
               yasm
             repo: https://gitlab.com/AOMediaCodec/SVT-AV1.git
+            strip: llvm-strip
             version: v1.5.0
             workdir: build
+          - as: yasm
+            configure: >-
+              --disable-codec-srcs
+              --disable-debug-libs
+              --disable-docs
+              --disable-examples
+              --disable-static
+              --disable-tools
+              --enable-better-hw-compatibility
+              --enable-libyuv
+              --enable-multi-res-encoding
+              --enable-pic
+              --enable-postproc
+              --enable-shared
+              --enable-vp8
+              --enable-vp9
+              --enable-vp9-highbitdepth
+              --enable-vp9-postproc
+              --enable-vp9-temporal-denoising
+              --enable-webm-io
+            name: libvpx7
+            ninja: false
+            packages:
+              libyuv-dev
+              make
+              yasm
+            repo: https://chromium.googlesource.com/webm/libvpx
+            strip: strip
+            version: v1.13.0
+            workdir: work
           - cmake: >-
               -DWEBP_BUILD_CWEBP=OFF
               -DWEBP_BUILD_DWEBP=OFF
@@ -125,6 +162,7 @@ jobs:
             name: libwebp7
             ninja: true
             repo: https://chromium.googlesource.com/webm/libwebp
+            strip: llvm-strip
             version: v1.3.0
             workdir: build
           - cmake: >-
@@ -137,6 +175,7 @@ jobs:
               libnuma-dev
             repo: https://bitbucket.org/multicoreware/x265_git.git
             sourcedir: source
+            strip: llvm-strip
             version: 3.5
             workdir: work
     steps:
@@ -174,21 +213,17 @@ jobs:
         name: Apply patch
         run: |
           patch --batch --unified /tmp/source/${{ matrix.patch }}
-      - env:
-          AR: llvm-ar
-          AS: ${{ matrix.as }}
-          CC: clang
-          CFLAGS: -flto -march=sandybridge
-          CXX: clang++
-          CXXFLAGS: -flto -march=sandybridge
-          LD: clang++
-          LDFLAGS: -Wl,--build-id=fast -Wl,--lto-O3 -Wl,--no-gnu-unique -Wl,--thinlto-jobs=all -fuse-ld=lld -march=sandybridge
-          NM: llvm-nm
-          OBJCOPY: llvm-objcopy
-          OBJDUMP: llvm-objdump
-          OTOOL: llvm-otool
-          RANLIB: llvm-ranlib
-          STRIP: llvm-strip
+      - if: ${{ matrix.configure != '' }}
+        name: Build ${{ matrix.name }}
+        run: |
+          mkdir -pv /tmp/source/${{ matrix.workdir }}
+          cd /tmp/source/${{ matrix.workdir }}
+          ../configure \
+            ${{ matrix.configure }} \
+            --prefix=/dist
+          make -j $(nproc)
+          make install
+      - if: ${{ matrix.configure == '' }}
         name: Build ${{ matrix.name }}
         run: |
           mkdir -pv /tmp/source/${{ matrix.workdir }}
