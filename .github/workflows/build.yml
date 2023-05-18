@@ -71,6 +71,19 @@ jobs:
             repo: https://github.com/xiph/opus.git
             version: v1.4
             workdir: build
+          - cmake: >-
+              -DSNAPPY_BUILD_BENCHMARKS=OFF
+              -DSNAPPY_BUILD_TESTS=OFF
+              -DSNAPPY_FUZZING_BUILD=OFF
+              -DSNAPPY_REQUIRE_AVX=ON
+            name: libsnappy
+            ninja: true
+            packages: >
+              patch
+            patch: snappy.cc snappy.patch
+            repo: https://github.com/google/snappy.git
+            version: 1.1.10
+            workdir: build
           - as: yasm
             cmake: >-
               -DBUILD_APPS=OFF
@@ -157,6 +170,22 @@ jobs:
         run: |
           mv -v /dist/lib/pkgconfig/{lib,}ilbc.pc
         shell: bash
+      - if: ${{ matrix.name == 'libsnappy' }}
+        name: Generate snappy.pc
+        run: |
+          mkdir -pv /dist/lib/pkgconfig
+          {
+            echo prefix=/usr/local
+            echo exec_prefix=\$\{prefix\}
+            echo includedir=\$\{prefix\}/include
+            echo libdir=\$\{prefix\}/lib
+            echo
+            echo Name: Snappy
+            echo Description: A fast compression/decompression library
+            echo Version: ${{ matrix.version }}
+            echo Libs: -L\$\{libdir\} -lsnappy
+            echo Cflags: -I\$\{includedir\}
+          } > /dist/lib/pkgconfig/snappy.pc
       - name: Archive the build binaries
         run: |
           tar --group=root \
