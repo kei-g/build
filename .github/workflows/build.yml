@@ -117,6 +117,17 @@ jobs:
             version: v1.5.0
             workdir: build
           - cmake: >-
+              -DWEBP_BUILD_CWEBP=OFF
+              -DWEBP_BUILD_DWEBP=OFF
+              -DWEBP_BUILD_IMG2WEBP=OFF
+              -DWEBP_BUILD_WEBPINFO=OFF
+              -DWEBP_BUILD_WEBPMUX=OFF
+            name: libwebp7
+            ninja: true
+            repo: https://chromium.googlesource.com/webm/libwebp
+            version: v1.3.0
+            workdir: build
+          - cmake: >-
               -DENABLE_CLI=OFF
               -DENABLE_LIBNUMA=ON
               -DNATIVE_BUILD=ON
