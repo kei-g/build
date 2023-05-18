@@ -95,6 +95,18 @@ jobs:
             repo: https://gitlab.com/AOMediaCodec/SVT-AV1.git
             version: v1.5.0
             workdir: build
+          - cmake: >-
+              -DENABLE_CLI=OFF
+              -DENABLE_LIBNUMA=ON
+              -DNATIVE_BUILD=ON
+            name: libx265
+            ninja: true
+            packages: >
+              libnuma-dev
+            repo: https://bitbucket.org/multicoreware/x265_git.git
+            sourcedir: source
+            version: 3.5
+            workdir: work
     steps:
       - env:
           DEBIAN_FRONTEND: noninteractive
@@ -155,7 +167,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/dist \
             ${{ matrix.cmake }} \
             -G "${{ (matrix.ninja && 'Ninja') || 'Unix Makefiles' }}" \
-            ..
+            ../${{ matrix.sourcedir }}
           cmake --build .
           cmake --install .
       - name: Replace '/dist' with '/usr/local' of pkgconfig
