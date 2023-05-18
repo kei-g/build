@@ -165,6 +165,25 @@ jobs:
             strip: llvm-strip
             version: v1.3.0
             workdir: build
+          - as: nasm
+            configure: >-
+              --disable-avs
+              --disable-cli
+              --disable-gpac
+              --disable-lavf
+              --disable-lsmash
+              --disable-static
+              --disable-swscale
+              --enable-shared
+              --enable-strip
+            name: libx264
+            packages: >
+              make
+              nasm
+            repo: https://code.videolan.org/videolan/x264.git
+            strip: llvm-strip
+            version: master
+            workdir: build
           - cmake: >-
               -DENABLE_CLI=OFF
               -DENABLE_LIBNUMA=ON
