@@ -14,6 +14,145 @@ jobs:
           )
           printf 'digest=%s\n' $digest | tee -a $GITHUB_OUTPUT
         shell: bash
+  ffmpeg:
+    container:
+      image: snowstep/llvm@${{ needs.digest.outputs.llvm }}
+    name: Build ffmpeg
+    needs:
+      - digest
+      - libraries
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          DEBIAN_FRONTEND: noninteractive
+        name: Install dependent packages
+        run: |
+          apt-fast update
+          apt-fast upgrade -y
+          apt-fast install --no-install-recommends -y \
+            git \
+            libass-dev \
+            libcaca-dev \
+            libdrm-dev \
+            libfdk-aac-dev \
+            libgl-dev \
+            libmp3lame-dev \
+            libnuma-dev \
+            libopenal-dev \
+            libssl-dev \
+            libtool \
+            libva-dev \
+            libvdpau-dev \
+            libvorbis-dev \
+            make \
+            ocl-icd-opencl-dev \
+            patch \
+            pkg-config \
+            yasm
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: /tmp/lib
+      - name: Prepare to build
+        run: |
+          cd /tmp
+          {
+            echo https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n6.0.tar.gz;
+            echo http://www.ladspa.org/download/ladspa_sdk_1.17.tgz;
+            echo https://github.com/FFmpeg/nv-codec-headers/archive/refs/tags/n12.0.16.0.tar.gz;
+          } | aria2c -i -
+          mv ladspa_sdk_1.17.t{,ar.}gz
+          for name in FFmpeg-n6.0 ladspa_sdk_1.17 nv-codec-headers-n12.0.16.0; do
+            tar -xf /tmp/$name.tar.gz &
+          done
+          wait
+          for name in aom ilbc lzma5 opus sdl2 snappy svtav1 vpx7 webp7 x264 x265; do
+            tar -C /usr/local -xvf /tmp/lib/lib$name/lib$name.tar &
+          done
+          cp ladspa_sdk_1.17/src/ladspa.h /usr/local/include/ &
+          {
+            cd nv-codec-headers-n12.0.16.0
+            make install
+            cd ..
+          } &
+          wait
+          rm -frv ladspa_sdk_1.17/ lib/ nv-codec-headers-n12.0.16.0/ *.tar.gz
+        shell: bash
+      - name: Clone the repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Apply patch
+        run: |
+          patch --batch --unified /tmp/FFmpeg-n6.0/fftools/ffmpeg.c ffmpeg.patch
+      - name: Build
+        run: |
+          mkdir -pv /tmp/work
+          cd /tmp/work
+          env PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
+            /tmp/FFmpeg-n6.0/configure \
+              --ar=llvm-ar \
+              --as=yasm \
+              --cc=clang \
+              --cxx=clang++ \
+              --dep-cc=clang \
+              --disable-debug \
+              --disable-doc \
+              --disable-libxcb \
+              --disable-libxcb-shape \
+              --disable-libxcb-shm \
+              --disable-libxcb-xfixes \
+              --disable-sndio \
+              --enable-ffplay \
+              --enable-gpl \
+              --enable-ladspa \
+              --enable-libaom \
+              --enable-libass \
+              --enable-libcaca \
+              --enable-libdrm \
+              --enable-libfdk-aac \
+              --enable-libfreetype \
+              --enable-libmp3lame \
+              --enable-libopus \
+              --enable-libsvtav1 \
+              --enable-libvorbis \
+              --enable-libvpx \
+              --enable-libwebp \
+              --enable-libx264 \
+              --enable-libx265 \
+              --enable-lto \
+              --enable-lzma \
+              --enable-nonfree \
+              --enable-openal \
+              --enable-opencl \
+              --enable-opengl \
+              --enable-shared \
+              --enable-version3 \
+              --extra-cflags=-march=sandybridge \
+              --extra-ldflags="-fuse-ld=lld -march=sandybridge" \
+              --extra-version=p1 \
+              --ld=clang \
+              --prefix=/dist \
+              --ranlib=llvm-ranlib \
+              --strip=llvm-strip \
+              --windres=llvm-windres
+            make -j $(nproc)
+            make install
+      - name: Replace '/dist' with '/usr/local' of pkgconfig
+        run: |
+          [[ -d /dist/lib/pkgconfig ]] || exit 0
+          for name in $(ls /dist/lib/pkgconfig/*.pc); do
+            sed -i 's#/dist#/usr/local#g' $name || true
+          done
+        shell: bash
+      - name: Archive the built binaries
+        run: |
+          tar -C /dist -cf /tmp/ffmpeg.tar .
+      - name: Upload the archive
+        uses: actions/upload-artifact@v3
+        with:
+          name: ffmpeg
+          path: /tmp/ffmpeg.tar
   libraries:
     container:
       image: snowstep/llvm@${{ needs.digest.outputs.llvm }}
