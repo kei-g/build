@@ -260,7 +260,7 @@ jobs:
               yasm
             repo: https://gitlab.com/AOMediaCodec/SVT-AV1.git
             strip: llvm-strip
-            version: v1.5.0
+            version: v1.7.0
             workdir: build
           - as: yasm
             configure: >-
