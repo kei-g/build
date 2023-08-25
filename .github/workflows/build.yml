@@ -233,7 +233,7 @@ jobs:
               libxkbcommon-dev
             repo: https://github.com/libsdl-org/SDL.git
             strip: llvm-strip
-            version: release-2.26.5
+            version: release-2.28.2
             workdir: build
           - as: llvm-as
             cmake: >-
