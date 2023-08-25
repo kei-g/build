@@ -302,7 +302,7 @@ jobs:
             ninja: true
             repo: https://chromium.googlesource.com/webm/libwebp
             strip: llvm-strip
-            version: v1.3.0
+            version: v1.3.1
             workdir: build
           - as: nasm
             configure: >-
