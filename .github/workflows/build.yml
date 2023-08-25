@@ -206,7 +206,7 @@ jobs:
               make
             repo: https://github.com/tukaani-project/xz.git
             strip: llvm-strip
-            version: v5.4.3
+            version: v5.4.4
             workdir: build
           - name: libopus
             ninja: true
