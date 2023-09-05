@@ -79,7 +79,7 @@ jobs:
           rm -frv ladspa_sdk_1.17/ lib/ nv-codec-headers-n12.0.16.0/ *.tar.gz
         shell: bash
       - name: Clone the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
       - name: Apply patch
@@ -364,7 +364,7 @@ jobs:
                     /tmp/source
       - if: ${{ matrix.patch }}
         name: Checkout the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
       - if: ${{ matrix.patch }}
